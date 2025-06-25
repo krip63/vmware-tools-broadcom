@@ -1,89 +1,76 @@
 import os
 import requests
 from bs4 import BeautifulSoup
-import subprocess
-import datetime
-import json
+from datetime import datetime
+import shutil
+import logging
+
+# 日志配置
+logging.basicConfig(
+    filename='sync.log',
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 
 BASE_URL = "https://packages-prod.broadcom.com/tools/"
-STATE_FILE = "last_state.json"
+DOWNLOAD_DIR = datetime.now().strftime("%Y-%m-%d")
+HEADERS = {'User-Agent': 'Mozilla/5.0'}
 
+def get_file_links(url):
+    try:
+        response = requests.get(url, headers=HEADERS)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+        links = []
 
-def get_file_list(url):
-    resp = requests.get(url)
-    resp.raise_for_status()
-    soup = BeautifulSoup(resp.text, "html.parser")
-
-    files = []
-    for link in soup.find_all("a"):
-        href = link.get("href")
-        if href and not href.endswith("/"):
-            files.append(href)
-    return files
-
-
-def load_last_state():
-    if not os.path.exists(STATE_FILE):
+        for link in soup.find_all("a"):
+            href = link.get("href")
+            if href and not href.startswith("?") and not href.startswith("/"):
+                full_url = url + href
+                if href.endswith("/"):
+                    # 是目录则递归
+                    links += get_file_links(full_url)
+                else:
+                    links.append(full_url)
+        return links
+    except Exception as e:
+        logging.error(f"获取链接失败: {url} - {e}")
         return []
-    with open(STATE_FILE, "r") as f:
-        return json.load(f)
 
+def download_file(url, base_dir):
+    try:
+        local_path = url.replace(BASE_URL, "")
+        local_file_path = os.path.join(base_dir, local_path)
 
-def save_last_state(file_list):
-    with open(STATE_FILE, "w") as f:
-        json.dump(file_list, f)
+        os.makedirs(os.path.dirname(local_file_path), exist_ok=True)
+        if os.path.exists(local_file_path):
+            logging.info(f"已存在，跳过: {local_file_path}")
+            return
 
-
-def download_file(file_name, folder):
-    url = BASE_URL + file_name
-    local_path = os.path.join(folder, file_name)
-    print(f"Downloading {url} -> {local_path}")
-
-    headers = {}
-    if os.path.exists(local_path):
-        local_size = os.path.getsize(local_path)
-        headers["Range"] = f"bytes={local_size}-"
-    else:
-        local_size = 0
-
-    with requests.get(url, stream=True, headers=headers) as r:
+        r = requests.get(url, stream=True, headers=HEADERS)
         r.raise_for_status()
-        mode = "ab" if local_size > 0 else "wb"
-        with open(local_path, mode) as f:
-            for chunk in r.iter_content(chunk_size=8192):
-                if chunk:
-                    f.write(chunk)
 
+        with open(local_file_path, "wb") as f:
+            shutil.copyfileobj(r.raw, f)
 
-def git_commit_push(folder):
-    print("Git add, commit and push ...")
-    subprocess.run(["git", "add", folder], check=True)
-    commit_msg = f"Update vmware tools backup {datetime.datetime.now().strftime('%Y-%m-%d')}"
-    subprocess.run(["git", "commit", "-m", commit_msg], check=True)
-    subprocess.run(["git", "push"], check=True)
-    print("Done.")
-
+        logging.info(f"下载完成: {local_file_path}")
+    except Exception as e:
+        logging.error(f"下载失败: {url} - {e}")
 
 def main():
-    print("Start checking updates...")
-    last_files = load_last_state()
-    current_files = get_file_list(BASE_URL)
+    logging.info("开始检查更新...")
+    links = get_file_links(BASE_URL)
 
-    if set(current_files) == set(last_files):
-        print("No update detected.")
+    if not links:
+        logging.info("未发现任何文件，终止。")
         return
 
-    print("Update detected, downloading all files ...")
-    date_folder = datetime.datetime.now().strftime("%Y-%m-%d")
-    if not os.path.exists(date_folder):
-        os.makedirs(date_folder)
+    os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
-    for file_name in current_files:
-        download_file(file_name, date_folder)
+    for file_url in links:
+        download_file(file_url, DOWNLOAD_DIR)
 
-    git_commit_push(date_folder)
-    save_last_state(current_files)
-
+    logging.info("同步完成。")
 
 if __name__ == "__main__":
     main()

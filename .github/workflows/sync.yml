@@ -6,7 +6,7 @@ on:
     - cron: '0 1 * * 1'
 
 jobs:
-  update-check:
+  sync-broadcom-tools:
     runs-on: ubuntu-latest
 
     steps:

@@ -1,79 +1,65 @@
 import os
 import requests
-from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
+from bs4 import BeautifulSoup
+from pathlib import Path
 import time
 
 BASE_URL = "https://packages-prod.broadcom.com/tools/"
-LOCAL_BASE_FOLDER = os.path.join("VMware Tools", "tools")
+LOCAL_BASE = "VMware Tools/tools"
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/138.0.0.0 Safari/537.36 Edg/138.0.0.0"
+    )
+}
 
-def format_size(size_bytes):
-    """格式化字节数为合适单位字符串"""
-    if size_bytes == 0:
-        return "0B"
-    units = ["B", "KB", "MB", "GB"]
-    idx = 0
-    size = float(size_bytes)
-    while size >= 1024 and idx < len(units) - 1:
-        size /= 1024
-        idx += 1
-    return f"{size:.2f} {units[idx]}"
-
-def download_file(url, local_path):
+def download_file(url, dest_path):
     try:
-        response = requests.get(url, stream=True, timeout=30)
-        response.raise_for_status()
-        total_size = int(response.headers.get('content-length', 0))
-        os.makedirs(os.path.dirname(local_path), exist_ok=True)
-
-        start_time = time.time()
-        with open(local_path, 'wb') as f:
-            for chunk in response.iter_content(1024 * 32):
-                if chunk:
-                    f.write(chunk)
-        end_time = time.time()
-
-        duration = end_time - start_time
-        duration = max(duration, 0.001)  # 防止除以0
-
-        size_mb = total_size / (1024 * 1024)
-        speed_mbps = (total_size * 8) / (duration * 1024 * 1024)  # 转换为 Mb/s
-
-        print(f"Downloaded: {urlparse(url).path} | {format_size(total_size)} in {duration:.2f}s ({speed_mbps:.2f} Mb/s)")
-
+        start = time.time()
+        with requests.get(url, stream=True, headers=HEADERS, timeout=10) as r:
+            r.raise_for_status()
+            dest_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(dest_path, 'wb') as f:
+                total = 0
+                for chunk in r.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+                        total += len(chunk)
+        elapsed = time.time() - start
+        mb = total / 1024 / 1024
+        speed = mb / elapsed if elapsed > 0 else 0
+        print(f"Downloaded: {url.replace(BASE_URL, '/tools/')} | {mb:.2f}MB in {elapsed:.2f}s ({speed:.2f} Mb/s)")
     except Exception as e:
-        print(f"Error downloading {url}: {e}")
+        print(f"❌ Failed to download {url}: {e}")
 
-def sync_folder(url, local_folder):
+def sync_directory(url, local_dir):
     try:
-        response = requests.get(url, timeout=30)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, 'html.parser')
-        # 解析网页，找所有的a标签，判断是文件还是目录
-        links = soup.find_all('a')
-        for link in links:
-            href = link.get('href')
-            if not href or href in ('../', './'):
+        res = requests.get(url, headers=HEADERS, timeout=10)
+        res.raise_for_status()
+        soup = BeautifulSoup(res.text, 'html.parser')
+        for link_tag in soup.find_all('a'):
+            href = link_tag.get('href')
+            if not href or href.startswith("?") or href.startswith("#"):
                 continue
             full_url = urljoin(url, href)
-            path = urlparse(full_url).path
-            # 判断是目录还是文件：
-            # 如果href以“/”结尾，认为是目录，否则是文件
-            if href.endswith('/'):
-                # 目录，递归同步
-                subfolder = os.path.join(local_folder, href.strip('/'))
-                sync_folder(full_url, subfolder)
+            parsed = urlparse(full_url)
+            if not parsed.path.startswith("/tools/"):
+                continue
+            relative_path = parsed.path.lstrip("/tools/")
+            local_path = Path(local_dir) / relative_path
+            if href.endswith("/"):
+                sync_directory(full_url, local_dir)
             else:
-                # 文件，增量下载（覆盖）
-                local_file_path = os.path.join(local_folder, href)
-                download_file(full_url, local_file_path)
+                if not local_path.exists() or local_path.stat().st_size == 0:
+                    download_file(full_url, local_path)
     except Exception as e:
-        print(f"Error syncing folder {url}: {e}")
+        print(f"❌ Failed to access {url}: {e}")
 
 def main():
-    print(f"Starting sync from {BASE_URL} to local folder '{LOCAL_BASE_FOLDER}' ...")
-    sync_folder(BASE_URL, LOCAL_BASE_FOLDER)
-    print("Sync complete.")
+    print(f"Starting sync from {BASE_URL} to local folder '{LOCAL_BASE}' ...")
+    sync_directory(BASE_URL, LOCAL_BASE)
 
 if __name__ == "__main__":
     main()

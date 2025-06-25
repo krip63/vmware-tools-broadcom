@@ -23,7 +23,7 @@ jobs:
         pip install -r requirements.txt
 
     - name: Run watcher script
-      run: python watcher.py
+      run: python sync_broadcom_tools.py
 
     - name: Commit and push changes
       run: |

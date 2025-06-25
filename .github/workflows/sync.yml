@@ -30,7 +30,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Run watcher script
+    - name: Run sync_broadcom_tools script
       run: python sync_broadcom_tools.py
 
     - name: Commit and push changes

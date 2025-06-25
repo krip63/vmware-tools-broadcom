@@ -2,75 +2,86 @@ import os
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
-import shutil
 import logging
 
-# 日志配置
+# 配置日志
 logging.basicConfig(
     filename='sync.log',
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
 )
 
-BASE_URL = "https://packages-prod.broadcom.com/tools/"
-DOWNLOAD_DIR = datetime.now().strftime("%Y-%m-%d")
-HEADERS = {'User-Agent': 'Mozilla/5.0'}
+BASE_URL = 'https://packages-prod.broadcom.com/tools/'
+LOCAL_ROOT = '.'  # 当前目录根目录存放
+LOG_FILE = 'sync.log'
 
-def get_file_links(url):
+def fetch_index(url):
     try:
-        response = requests.get(url, headers=HEADERS)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, "html.parser")
-        links = []
-
-        for link in soup.find_all("a"):
-            href = link.get("href")
-            if href and not href.startswith("?") and not href.startswith("/"):
-                full_url = url + href
-                if href.endswith("/"):
-                    # 是目录则递归
-                    links += get_file_links(full_url)
-                else:
-                    links.append(full_url)
-        return links
+        resp = requests.get(url)
+        resp.raise_for_status()
+        return resp.text
     except Exception as e:
-        logging.error(f"获取链接失败: {url} - {e}")
-        return []
+        logging.error(f'Error fetching index page: {url} - {e}')
+        return None
 
-def download_file(url, base_dir):
+def parse_file_links(html):
+    soup = BeautifulSoup(html, 'html.parser')
+    links = []
+    for a in soup.find_all('a', href=True):
+        href = a['href']
+        # 过滤目录链接和上级链接
+        if href.endswith('/') or href in ('../',):
+            continue
+        links.append(href)
+    return links
+
+def download_file(url, save_path):
     try:
-        local_path = url.replace(BASE_URL, "")
-        local_file_path = os.path.join(base_dir, local_path)
-
-        os.makedirs(os.path.dirname(local_file_path), exist_ok=True)
-        if os.path.exists(local_file_path):
-            logging.info(f"已存在，跳过: {local_file_path}")
-            return
-
-        r = requests.get(url, stream=True, headers=HEADERS)
-        r.raise_for_status()
-
-        with open(local_file_path, "wb") as f:
-            shutil.copyfileobj(r.raw, f)
-
-        logging.info(f"下载完成: {local_file_path}")
+        with requests.get(url, stream=True) as r:
+            r.raise_for_status()
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+            with open(save_path, 'wb') as f:
+                for chunk in r.iter_content(chunk_size=8192):
+                    f.write(chunk)
+        logging.info(f'Downloaded {url} -> {save_path}')
+        return True
     except Exception as e:
-        logging.error(f"下载失败: {url} - {e}")
+        logging.error(f'Error downloading file {url}: {e}')
+        return False
 
 def main():
-    logging.info("开始检查更新...")
-    links = get_file_links(BASE_URL)
+    logging.info('--- Start sync_broadcom_tools.py ---')
 
-    if not links:
-        logging.info("未发现任何文件，终止。")
+    html = fetch_index(BASE_URL)
+    if html is None:
+        logging.error('Failed to fetch base index page. Abort.')
         return
 
-    os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+    files = parse_file_links(html)
+    if not files:
+        logging.info('No files found to download. Abort.')
+        return
 
-    for file_url in links:
-        download_file(file_url, DOWNLOAD_DIR)
+    today = datetime.utcnow().strftime('%Y-%m-%d')
+    dest_folder = os.path.join(LOCAL_ROOT, today)
 
-    logging.info("同步完成。")
+    # 判断今天目录是否存在且非空，避免重复下载
+    if os.path.exists(dest_folder) and os.listdir(dest_folder):
+        logging.info(f'Today\'s folder "{dest_folder}" already exists and is not empty. Skipping download.')
+        return
 
-if __name__ == "__main__":
+    # 下载所有文件
+    success_count = 0
+    for filename in files:
+        file_url = BASE_URL + filename
+        save_path = os.path.join(dest_folder, filename)
+        if download_file(file_url, save_path):
+            success_count += 1
+
+    logging.info(f'Download complete. {success_count}/{len(files)} files downloaded.')
+
+    logging.info('--- End sync_broadcom_tools.py ---')
+
+if __name__ == '__main__':
     main()

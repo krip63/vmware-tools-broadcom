@@ -2,52 +2,78 @@ import os
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
+import time
 
-BASE_URL = 'https://packages-prod.broadcom.com/tools/'
-SAVE_DIR = os.path.join('VMware Tools', 'tools')
+BASE_URL = "https://packages-prod.broadcom.com/tools/"
+LOCAL_BASE_FOLDER = os.path.join("VMware Tools", "tools")
 
-def ensure_dir(path):
-    if not os.path.exists(path):
-        os.makedirs(path)
+def format_size(size_bytes):
+    """格式化字节数为合适单位字符串"""
+    if size_bytes == 0:
+        return "0B"
+    units = ["B", "KB", "MB", "GB"]
+    idx = 0
+    size = float(size_bytes)
+    while size >= 1024 and idx < len(units) - 1:
+        size /= 1024
+        idx += 1
+    return f"{size:.2f} {units[idx]}"
 
-def download_file(url, save_path):
+def download_file(url, local_path):
     try:
-        r = requests.get(url, stream=True, timeout=30)
-        r.raise_for_status()
-        with open(save_path, 'wb') as f:
-            for chunk in r.iter_content(chunk_size=8192):
-                f.write(chunk)
-        print(f"Downloaded: {url} -> {save_path}")
-    except Exception as e:
-        print(f"Failed to download {url}: {e}")
+        response = requests.get(url, stream=True, timeout=30)
+        response.raise_for_status()
+        total_size = int(response.headers.get('content-length', 0))
+        os.makedirs(os.path.dirname(local_path), exist_ok=True)
 
-def crawl(url, local_path):
-    ensure_dir(local_path)
+        start_time = time.time()
+        with open(local_path, 'wb') as f:
+            for chunk in response.iter_content(1024 * 32):
+                if chunk:
+                    f.write(chunk)
+        end_time = time.time()
+
+        duration = end_time - start_time
+        duration = max(duration, 0.001)  # 防止除以0
+
+        size_mb = total_size / (1024 * 1024)
+        speed_mbps = (total_size * 8) / (duration * 1024 * 1024)  # 转换为 Mb/s
+
+        print(f"Downloaded: {urlparse(url).path} | {format_size(total_size)} in {duration:.2f}s ({speed_mbps:.2f} Mb/s)")
+
+    except Exception as e:
+        print(f"Error downloading {url}: {e}")
+
+def sync_folder(url, local_folder):
     try:
-        r = requests.get(url, timeout=30)
-        r.raise_for_status()
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+        # 解析网页，找所有的a标签，判断是文件还是目录
+        links = soup.find_all('a')
+        for link in links:
+            href = link.get('href')
+            if not href or href in ('../', './'):
+                continue
+            full_url = urljoin(url, href)
+            path = urlparse(full_url).path
+            # 判断是目录还是文件：
+            # 如果href以“/”结尾，认为是目录，否则是文件
+            if href.endswith('/'):
+                # 目录，递归同步
+                subfolder = os.path.join(local_folder, href.strip('/'))
+                sync_folder(full_url, subfolder)
+            else:
+                # 文件，增量下载（覆盖）
+                local_file_path = os.path.join(local_folder, href)
+                download_file(full_url, local_file_path)
     except Exception as e:
-        print(f"Failed to access {url}: {e}")
-        return
+        print(f"Error syncing folder {url}: {e}")
 
-    soup = BeautifulSoup(r.text, 'html.parser')
+def main():
+    print(f"Starting sync from {BASE_URL} to local folder '{LOCAL_BASE_FOLDER}' ...")
+    sync_folder(BASE_URL, LOCAL_BASE_FOLDER)
+    print("Sync complete.")
 
-    for link in soup.find_all('a'):
-        href = link.get('href')
-        if not href or href.startswith('?') or href == '../':
-            continue
-
-        full_url = urljoin(url, href)
-        # 判断链接是否是目录（以 / 结尾）还是文件
-        if href.endswith('/'):
-            # 目录，递归调用
-            crawl(full_url, os.path.join(local_path, href.strip('/')))
-        else:
-            # 文件，下载覆盖
-            file_path = os.path.join(local_path, href)
-            download_file(full_url, file_path)
-
-if __name__ == '__main__':
-    print(f"Starting sync from {BASE_URL} to local folder '{SAVE_DIR}' ...")
-    crawl(BASE_URL, SAVE_DIR)
-    print("Sync completed.")
+if __name__ == "__main__":
+    main()

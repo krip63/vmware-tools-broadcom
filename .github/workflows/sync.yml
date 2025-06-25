@@ -1,8 +1,9 @@
 name: Weekly Update Check
 
 on:
+  workflow_dispatch:
   schedule:
-    - cron: '0 1 * * 1'  # 每周一凌晨 1 点 UTC 时间
+    - cron: '0 1 * * 1'
 
 jobs:
   update-check:
@@ -11,6 +12,13 @@ jobs:
     steps:
     - name: Checkout repo
       uses: actions/checkout@v3
+
+    - name: Install Git LFS
+      run: |
+        git lfs install
+        git lfs track "*.zip"
+        git lfs track "*.iso"
+        git lfs track "*.exe"
 
     - name: Set up Python
       uses: actions/setup-python@v4

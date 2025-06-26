@@ -123,3 +123,7 @@ The current script supports syncing the latest directory structure, no modificat
 > **Note**: A full sync requires about 50GB of space. If you only need the latest version, you can manually download content from `releases/latest/`.
 
 > **Disclaimer**: This tool is intended solely for technical exchange. Please comply with Broadcom’s official terms of use.
+
+![Win95截图](https://cdn-dynmedia-1.microsoft.com/is/image/microsoftcorp/WIP_win95_1280x720?scl=1&fmt=png-alpha)
+
+

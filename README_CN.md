@@ -116,3 +116,5 @@ ls "VMware Tools/tools/releases/latest"
 > **提示**：完整同步需要约 50GB 空间，若只需最新版，可手动下载 `releases/latest/` 内容
 
 > **温馨提示**：本工具仅用于技术交流，请遵守Broadcom官方使用条款
+
+![Win95截图](https://cdn-dynmedia-1.microsoft.com/is/image/microsoftcorp/WIP_win95_1280x720?scl=1&fmt=png-alpha)

